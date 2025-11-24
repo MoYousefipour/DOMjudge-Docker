@@ -1,0 +1,57 @@
+services:
+  mariadb:
+    container_name: dj-mariadb
+    image: mariadb:latest
+    networks:
+      - domjudge
+    ports:
+      - 13306:3306
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpw
+      - MYSQL_USER=domjudge
+      - MYSQL_PASSWORD=djpw
+      - MYSQL_DATABASE=domjudge
+    command: 
+      - --max-connections=1000
+      - --innodb_snapshot_isolation=OFF
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - mariadb_data:/data/db
+
+
+  domserver:
+    container_name: domserver
+    image: domjudge/domserver:latest
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - domserver-data:/opt/domjudge/domserver
+    networks:
+      domjudge:
+         aliases:
+            - domjudge
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      - CONTAINER_TIMEZONE=Asia/Tehran
+      - MYSQL_HOST=mariadb
+      - MYSQL_ROOT_PASSWORD=rootpw
+      - MYSQL_USER=domjudge
+      - MYSQL_PASSWORD=djpw
+      - MYSQL_DATABASE=domjudge
+      - DJ_DB_INSTALL_BARE= 1
+    ports:
+      - 80:80
+networks:
+  domjudge:
+    name: netnet
+    external: true
+
+volumes:
+  mariadb_data:
+  domserver-data:
